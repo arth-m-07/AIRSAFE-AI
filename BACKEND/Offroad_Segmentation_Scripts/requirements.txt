@@ -1,0 +1,8 @@
+﻿fastapi
+uvicorn
+torch
+numpy
+opencv-python
+segmentation-models-pytorch
+python-multipart
+Pillow

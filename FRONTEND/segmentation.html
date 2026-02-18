@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Emergency Landing Zone Detection System</title>
+
+  <!-- Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #050c18;
+      color: white;
+      overflow-x: hidden;
+    }
+
+    #bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -1;
+    }
+
+    .main {
+      backdrop-filter: blur(12px);
+      background: rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 40px;
+      margin: 80px auto;
+      width: 80%;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(0,255,255,0.2);
+    }
+
+    .btn {
+      background: linear-gradient(45deg, #00c6ff, #0072ff);
+      border: none;
+      padding: 12px 25px;
+      border-radius: 8px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 15px #00c6ff;
+    }
+
+    img {
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,255,255,0.3);
+    }
+
+    .images {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      margin-top: 40px;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+
+<body>
+
+<canvas id="bg"></canvas>
+
+<div class="main">
+  <h2>✈️ Emergency Landing Zone Detection System</h2>
+
+  <input type="file" id="imageInput" accept="image/*" />
+  <br><br>
+  <button class="btn" onclick="uploadImage()">Run Terrain Analysis</button>
+  <div id="safetyPanel" style="
+    margin-top:20px;
+    padding:20px;
+    border-radius:15px;
+    background: rgba(0,0,0,0.5);
+    display:none;
+    max-width:600px;
+    margin-left:auto;
+    margin-right:auto;
+">
+
+    <h3 id="statusText" style="margin-bottom:15px;">Status</h3>
+
+    <div style="background:#222; border-radius:10px; overflow:hidden; height:20px;">
+        <div id="scoreBar" style="
+            height:20px;
+            width:0%;
+            background: limegreen;
+            transition: width 0.6s ease;
+        "></div>
+    </div>
+
+    <p id="scoreText" style="margin-top:10px;"></p>
+</div>
+
+
+  <div class="images">
+    <div>
+      <h3>Original</h3>
+      <img id="originalPreview" width="400"/>
+    </div>
+
+    <div>
+      <h3>AI Landing Analysis</h3>
+      <img id="resultImage" width="400"/>
+    </div>
+  </div>
+</div>
+
+<!-- Upload Logic -->
+<script>
+function uploadImage() {
+
+    const fileInput = document.getElementById("imageInput");
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert("Please select an image first.");
+        return;
+    }
+
+    document.getElementById("originalPreview").src = URL.createObjectURL(file);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    fetch("http://localhost:8000/predict/", {
+        method: "POST",
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+
+        const byteArray = new Uint8Array(
+            data.image.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
+        );
+
+        const blob = new Blob([byteArray], { type: "image/png" });
+        const url = URL.createObjectURL(blob);
+
+        document.getElementById("resultImage").src = url;
+
+        const panel = document.getElementById("safetyPanel");
+        const statusText = document.getElementById("statusText");
+        const scoreBar = document.getElementById("scoreBar");
+        const scoreText = document.getElementById("scoreText");
+
+        panel.style.display = "block";
+
+        statusText.innerText = data.status;
+        scoreText.innerText = "Landing Feasibility Score: " + data.safety_score + "%";
+
+        scoreBar.style.width = data.safety_score + "%";
+
+        if (data.safety_score > 40) {
+            scoreBar.style.background = "limegreen";
+            statusText.style.color = "limegreen";
+        } else {
+            scoreBar.style.background = "red";
+            statusText.style.color = "red";
+        }
+
+    })
+    .catch(error => {
+        console.error(error);
+        alert("Error connecting to backend.");
+    });
+}
+</script>
+
+</body>
+</html>
